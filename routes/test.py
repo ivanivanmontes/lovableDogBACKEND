@@ -1,5 +1,6 @@
 import psycopg2
 from main import app
+from init import connection
 from flask import jsonify, Response, request, session
 
 url = "postgresql://postgres:2046@localhost:5432/test"
@@ -13,24 +14,58 @@ def test_connection() -> Response:
 @app.route('/dbtest')
 def test_db_connection():
     try:
-        # Establish a connection to the database
-        conn = psycopg2.connect(url)
-        
-        # Create a cursor to execute SQL queries
-        cur = conn.cursor()
-        
-        # Execute a sample SQL query
+        cur = connection.cursor()
         cur.execute("SELECT version()")
-        
-        # Fetch the result of the query
         db_version = cur.fetchone()[0]
-        
-        # Close the cursor and connection
         cur.close()
-        conn.close()
         
         return f"Connected to PostgreSQL! Database version: {db_version}"
     
     except psycopg2.Error as e:
         # Handle any errors that occur during database connection
         return f"Error connecting to PostgreSQL: {e}"
+    
+
+@app.route("/addPin", methods =["POST"])
+def add_pin() -> Response:
+    """
+    CREATE TABLE pins (
+    Pin_ID INT PRIMARY KEY,
+    latitude FLOAT,
+    longitude FLOAT,
+    title VARCHAR(255),
+    date_added DATE,
+    description TEXT
+);
+    """
+    data = request.get_json();
+    pin_id = data.get("Pin_ID");
+    latitude = data.get("latitude");
+    longitude = data.get("longitude");
+    title = data.get("title");
+    date_added = data.get("date_added");
+    desc = data.get("description")
+
+
+
+    ...
+
+
+@app.route("/getPins", methods = ["GET"])
+def get_pins() -> Response:
+    query = """
+    SELECT *
+    FROM pins
+    """
+
+    cur = connection.cursor()
+    cur.execute(query)
+    raw_data = cur.fetchall()
+    return jsonify("success" , raw_data);
+
+
+    
+
+
+
+
