@@ -1,4 +1,5 @@
 import psycopg2
+import random
 from main import app
 from init import connection
 from flask import jsonify, Response, request
@@ -19,19 +20,22 @@ def add_pin() -> Response:
     """
     try:
         data = request.get_json();
-        pin_id = data.get("Pin_ID");
+        # pin_id = data.get("Pin_ID");
+        pin_id = random.randint(0, 1000000);
         latitude = data.get("latitude");
         longitude = data.get("longitude");
         title = data.get("title");
         date_added = data.get("date_added");
-        desc = data.get("description")
+        desc = data.get("description");
+        user_id = data.get("user_id");
         query = """
-            INSERT INTO pins (Pin_ID, latitude, longitude, title, date_added, description)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO pins (Pin_ID, latitude, longitude, title, date_added, description, user_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
+        if user_id is None: return jsonify({"error" : "must pass in a user_id"});
 
         cur = connection.cursor()
-        cur.execute(query, (pin_id, latitude, longitude, title, date_added, desc))  # Passing values as a tuple
+        cur.execute(query, (pin_id, latitude, longitude, title, date_added, desc, user_id))  # Passing values as a tuple
         connection.commit();
         cur.close();
 
@@ -39,15 +43,16 @@ def add_pin() -> Response:
     except psycopg2.Error as e:
         return jsonify({"error" : str(e)});
 
-@app.route("/getPins", methods = ["GET"])
-def get_pins() -> Response:
+@app.route("/getPins/<int:user_id>", methods = ["GET"])
+def get_pins(user_id : int) -> Response:
     query = """
     SELECT *
     FROM pins
+    WHERE user_id = %s
     """
     try:
         cur = connection.cursor()
-        cur.execute(query)
+        cur.execute(query, (user_id,))
         raw_data = cur.fetchall()
         cur.close()
         column_name = [column[0] for column in cur.description]
