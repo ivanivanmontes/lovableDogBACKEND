@@ -1,8 +1,10 @@
+import io
 import os
 import boto3
 import botocore
-from flask import Flask, jsonify, Response
+from flask import Flask, request, jsonify, send_file
 from dotenv import load_dotenv
+from init import app
 
 # Load environment variables from .env file
 load_dotenv()
@@ -10,8 +12,7 @@ load_dotenv()
 AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
 
-# Initialize Flask app
-app = Flask(__name__)
+# app = Flask(__name__)
 
 
 # Initialize S3 client
@@ -22,33 +23,44 @@ s3 = boto3.client('s3',
 
 BUCKET_NAME = "lovabledog"
 
-@app.route('/upload', methods=["GET"])
-def upload() -> Response:
-    print("AWS_ACCESS_KEY_ID:", AWS_ACCESS_KEY_ID)
-    print("AWS_SECRET_ACCESS_KEY:", AWS_SECRET_ACCESS_KEY)
-    
-    # Print current directory
-    print("Current Directory:", os.getcwd())
-
-    # Check if test.txt exists
-    file_path = 'routes/:p.txt'  # Adjusted file path
-    if os.path.exists(file_path):
-        try:
-            with open(file_path, 'rb') as f:
-                s3.upload_fileobj(f, BUCKET_NAME, ':p.txt')
-            return jsonify({"message": "File uploaded successfully"}), 200
-        except botocore.exceptions.ClientError as e:
-            return jsonify({"error": str(e)}), 500
-    else:
-        return jsonify({"error": "test.txt not found"}), 404
-
-    
-
-# @app.route("/download/<str:filename>", methods= ["GET"])
-# def download(filename : str) -> Response:
+# @app.route('/upload', methods=['POST'])
+# def upload_file():
+#     if 'file' not in request.files:
+#         return jsonify({"error": "No file part"}), 400
+#     file = request.files['file']
+#     if file.filename == '':
+#         return jsonify({"error": "No selected file"}), 400
 #     try:
-#         response = s3.get_object(Bucket=BUCKET_NAME, Key=filename)
-#         file_data = response['Body'].read()
-#         return jsonify({'data': file_data.decode('utf-8')}), 200
-#     except botocore.exceptions.ClientError as e:
-#         return jsonify({'error': str(e)}), 404
+#         s3.upload_fileobj(file, BUCKET_NAME, file.filename)
+#         return jsonify({"message": "File uploaded successfully"}), 200
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+
+@app.route("/getPhoto", methods = ["POST"])
+def get_photo():
+    try:
+        file = request.files['file']  # Access uploaded file
+        if file:
+            filename = file.filename
+            s3.upload_fileobj(file, BUCKET_NAME, filename)  # Upload file to S3 bucket
+            return jsonify({'message': 'File uploaded successfully'}), 200
+        else:
+            return jsonify({'error': 'No file uploaded'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route("/download/<string:filename>", methods=["GET"])
+def download(filename):
+    try:
+        response = s3.get_object(Bucket=BUCKET_NAME, Key=filename)
+        file_data = response['Body'].read()
+        return send_file(
+            io.BytesIO(file_data),
+            mimetype='image/jpeg',  # Adjust mimetype based on your file type
+            as_attachment=True,
+            attachment_filename=filename
+        )
+    except botocore.exceptions.ClientError as e:
+        return jsonify({'error': str(e)}), 404
+    
+
